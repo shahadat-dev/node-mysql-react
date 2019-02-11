@@ -5,6 +5,8 @@ import TextFieldGroup from '../common/TextFieldGroup'
 
 import { loginUser } from '../../actions/authActions'
 
+import { validateLoginInput } from '../../validation/login'
+
 class Login extends Component {
   constructor() {
     super()
@@ -46,7 +48,12 @@ class Login extends Component {
       password: this.state.password
     }
 
-    console.log(userData)
+    // validate
+    const { errors, isValid } = validateLoginInput(userData)
+    if (!isValid) {
+      this.setState({ errors })
+      return
+    }
 
     this.props.loginUser(userData)
   }

@@ -6,6 +6,8 @@ import TextFieldGroup from '../common/TextFieldGroup'
 
 import { registerUser } from '../../actions/authActions'
 
+import { validateRegisterInput } from '../../validation/register'
+
 class Register extends Component {
   constructor() {
     super()
@@ -38,7 +40,8 @@ class Register extends Component {
         username: '',
         email: '',
         password: '',
-        password2: ''
+        password2: '',
+        errors: {}
       })
     }
   }
@@ -51,10 +54,17 @@ class Register extends Component {
     e.preventDefault()
 
     const newUser = {
-      username: this.state.username,
-      email: this.state.email,
+      username: this.state.username.trim(),
+      email: this.state.email.trim(),
       password: this.state.password,
       password2: this.state.password2
+    }
+
+    // validate
+    const { errors, isValid } = validateRegisterInput(newUser)
+    if (!isValid) {
+      this.setState({ errors })
+      return
     }
 
     this.props.registerUser(newUser, this.props.history, this.state)
