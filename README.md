@@ -6,14 +6,14 @@ Implented Registration and Login for users
 
 #### Tools
 
-**Express.js** as server side framework
-**MySql** as database
-**React.js** for client side development
-**Redux.js** for client side state management
-**[Validator.js](https://github.com/chriso/validator.js)** for both client and server side validation
-**passport** as authentication middleware
-**axios** as HTTP client
-**create-react-app** to setup React.js environment
+- **Express.js** as server side framework
+- **MySql** as database
+- **React.js** for client side development
+- **Redux.js** for client side state management
+- **[Validator.js](https://github.com/chriso/validator.js)** for both client and server side validation
+- **passport** as authentication middleware
+- **axios** as HTTP client
+- **create-react-app** to setup React.js environment
 
 # Setup
 
@@ -59,7 +59,7 @@ Client side development is powered by _React.js_
 
 ###### TODO:
 
-Test Codes
-Promisify server-side code
+- Test Codes
+- Promisify server-side code
 
 _Happy Coding!_
