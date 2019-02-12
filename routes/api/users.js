@@ -5,9 +5,12 @@ const jwt = require('jsonwebtoken')
 const keys = require('../../config/keys')
 const passport = require('passport')
 const db = require('../../config/db')
+const pool = require('../../config/pool')
 
 const validateRegisterInput = require('../../validation/register')
 const validateLoginInput = require('../../validation/login')
+
+var connection
 
 // @route   GET /api/users/test
 // @desc    Test users route
@@ -31,60 +34,64 @@ router.post('/register', (req, res) => {
 
   // Check if Email already exists
   let sql = `SELECT * FROM users WHERE email = '${req.body.email}'`
-  db.query(sql, (err, result) => {
-    if (err) {
-      console.log(err)
-      return res.send(err.sqlMessage)
-    }
-    console.log(result, typeof result, result.length)
 
-    if (result.length > 0) {
-      errors.email = 'Email already exists'
-      return res.status(400).json(errors)
-    }
+  pool
+    .getConnection()
+    .then(conn => {
+      connection = conn
+        .query(sql)
+        .then(rows => {
+          console.log('==== FIRST ROWS =====', rows, rows.length)
+          if (rows.length > 0) {
+            errors.email = 'Email already exists'
+            console.log('RELEASE HERE..........')
+            conn.release()
+            return res.status(400).json(errors)
+          }
 
-    // Check if username already exists
-    let sql = `SELECT * FROM users WHERE username = '${req.body.username}'`
-    db.query(sql, (err, result) => {
-      if (err) {
-        console.log(err)
-        return res.send(err.sqlMessage)
-      }
-      console.log(result, typeof result, result.length)
-      if (result.length > 0) {
-        errors.email = 'Username already exists'
-        return res.status(400).json(errors)
-      }
+          // Check if username already exists
+          let sql = `SELECT * FROM users WHERE username = '${
+            req.body.username
+          }'`
+          return connection.query(sql)
+        })
+        .then(rows => {
+          console.log('====== ROWS HERE ======', rows.length)
+          if (rows.length > 0) {
+            errors.email = 'Username already exists'
+            connection.release()
+            return res.status(400).json(errors)
+          }
 
-      // Create new user
-      const user = {
-        username: req.body.username,
-        email: req.body.email,
-        password: req.body.password
-      }
+          // Create new user
+          const user = {
+            username: req.body.username,
+            email: req.body.email,
+            password: req.body.password
+          }
 
-      bcrypt.genSalt(10, (err, salt) => {
-        bcrypt.hash(user.password, salt, (err, hash) => {
-          if (err) throw err
-          user.password = hash
+          bcrypt.genSalt(10, (err, salt) => {
+            bcrypt.hash(user.password, salt, (err, hash) => {
+              if (err) throw err
+              user.password = hash
 
-          let sql = 'INSERT INTO users SET ?'
-          db.query(sql, user, (err, result) => {
-            if (err) {
-              console.log(err)
-              return res.send(err.sqlMessage)
-            }
-            console.log(result)
-            res.json({
-              status: 'ok',
-              msg: 'User registered successfully...',
-              data: { username: req.body.username, email: req.body.email }
+              let sql = 'INSERT INTO users SET ?'
+              connection
+                .query(sql, user)
+                .then(user => {
+                  console.log(user)
+                  res.json({
+                    status: 'ok',
+                    msg: 'Your registration is successful.',
+                    data: { username: req.body.username, email: req.body.email }
+                  })
+                })
+                .catch(e => console.log(e))
             })
           })
         })
-      })
     })
-  })
+    .catch(e => console.log(e))
 })
 
 // @route   POST /api/users/login
@@ -103,51 +110,47 @@ router.post('/login', (req, res) => {
 
   // Find user by email
   let sql = `SELECT * FROM users WHERE email = '${email}'`
-  db.query(sql, (err, result) => {
-    if (err) {
-      console.log(err)
-      return res.send(err.sqlMessage)
-    }
-    console.log(result, typeof result, result.length)
 
-    if (result.length === 0) {
-      errors.email = 'User not found'
-      return res.status(404).json(errors)
-    }
-
-    const user = result[0]
-
-    // Check Password
-    bcrypt.compare(password, user.password).then(isMatch => {
-      if (isMatch) {
-        // User Matched
-        // Create JWT payload
-        const payload = {
-          id: user.id,
-          username: user.username,
-          email: user.email
-        }
-
-        // Sign Token
-        jwt.sign(
-          payload,
-          keys.secretOrKey,
-          {
-            expiresIn: 3600
-          },
-          (err, token) => {
-            res.json({
-              msg: 'success',
-              token: 'Bearer ' + token
-            })
-          }
-        )
-      } else {
-        errors.password = 'Password incorrect'
-        res.status(400).json(errors)
+  pool
+    .query(sql)
+    .then(rows => {
+      if (rows.length === 0) {
+        errors.email = 'User not found'
+        return res.status(404).json(errors)
       }
+      let user = rows[0]
+      // Check Password
+      bcrypt.compare(password, user.password).then(isMatch => {
+        if (isMatch) {
+          // User Matched
+          // Create JWT payload
+          const payload = {
+            id: user.id,
+            username: user.username,
+            email: user.email
+          }
+
+          // Sign Token
+          jwt.sign(
+            payload,
+            keys.secretOrKey,
+            {
+              expiresIn: 3600
+            },
+            (err, token) => {
+              res.json({
+                msg: 'success',
+                token: 'Bearer ' + token
+              })
+            }
+          )
+        } else {
+          errors.password = 'Password incorrect'
+          res.status(400).json(errors)
+        }
+      })
     })
-  })
+    .catch(e => console.log(e))
 })
 
 // @route   GET /api/users/current
